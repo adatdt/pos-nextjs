@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["master", "public"]
+}
+
+model users {
+  id           BigInt    @id(map: "newtable_pk") @default(autoincrement())
+  name         String    @db.VarChar(100)
+  username     String    @db.VarChar(100)
+  password     String
+  phone_number String?   @db.VarChar(20)
+  address      String?
+  status       Int?      @db.SmallInt
+  group_id     Int       @db.SmallInt
+  created_on   DateTime? @db.Timestamp(6)
+  created_by   String?   @db.VarChar(100)
+  updated_on   DateTime? @db.Time(6)
+  updated_by   String?   @db.VarChar(100)
+
+  @@schema("master")
+}
+
+model menu {
+  id         BigInt    @id(map: "t_mtr_menu_pkey") @default(autoincrement())
+  parent     Int?
+  name       String    @db.VarChar(100)
+  icon       String?
+  slug       String?
+  number     Int       @db.SmallInt
+  status     Int       @default(1) @db.SmallInt
+  created_by String?   @db.VarChar(100)
+  created_on DateTime? @db.Timestamp(6)
+  updated_by String?   @db.VarChar(100)
+  updated_on DateTime? @db.Timestamp(6)
+
+  @@schema("master")
+}
+
+model action {
+  id         BigInt    @id @default(autoincrement())
+  name       String    @db.VarChar(100)
+  status     Int
+  created_on DateTime  @db.Timestamp(6)
+  created_by String?   @db.VarChar(100)
+  updated_on DateTime? @db.Timestamp(6)
+  updated_by String?   @db.VarChar(100)
+
+  @@schema("master")
+}
+
+model privilage {
+  id         BigInt    @id(map: "menu_detail_pk") @default(autoincrement())
+  menu_id    Int
+  action_id  Int
+  status     Int
+  created_on DateTime  @db.Timestamp(6)
+  created_by String?   @db.VarChar(100)
+  updated_on DateTime? @db.Timestamp(6)
+  updated_by String?   @db.VarChar(100)
+
+  @@schema("master")
+}

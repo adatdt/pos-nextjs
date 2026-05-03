@@ -1,0 +1,9 @@
+{
+    "editor.wordWrap":"on",
+    "editor.fontFamily": "Comic Sans MS",
+    "editor.fontSize": 16,
+    "workbench.colorTheme":"Tomorrow Night Blue",
+    "terminal.integrated.fontFamily": "Tahoma",
+    "terminal.integrated.fontSize": 15,
+    "material-icon-theme.folders.color":"#6C6C6C"
+}
