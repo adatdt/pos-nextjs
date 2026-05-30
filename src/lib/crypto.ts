@@ -1,7 +1,7 @@
 import CryptoJS from 'crypto-js';
 
 export const encryptAES = (data: any): string => {
-  const keyStr = process.env.SECRET_KEY;
+  const keyStr = process.env.NEXT_PUBLIC_SECRET_KEY;
   if (!keyStr) return "";
 
   const key = CryptoJS.enc.Utf8.parse(keyStr);

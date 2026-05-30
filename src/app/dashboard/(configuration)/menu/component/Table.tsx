@@ -31,8 +31,13 @@ export default function Table({title}: Readonly<GetData>) {
 
             const result = await response.json();            
             setDataGrid(result.data);
-            setDataGridAction(result.dataAction)
-            
+           
+            const dataAction = result.dataAction.map((element: { id: string; name: string }) => ({
+                value: element.id,
+                label: element.name
+            }));
+             setDataGridAction(dataAction)
+
             } catch (error) {
             console.error("Gagal:", error);
             } finally {
@@ -122,7 +127,7 @@ export default function Table({title}: Readonly<GetData>) {
 
     return (
         <div className="mt-2 text-gray-600 p-4">
-             {showModal&&(<Edit title={title} handlingModal={handlingModal}  dataDetail={dataDetail}  dataAction={dataGridAction} />)}
+             {showModal&&(<Edit title={title} handlingModal={handlingModal}  dataDetail={dataDetail}  dataAction={dataGridAction} dataGrid={dataGrid}/>)}
            <div className="flex flex-col md:flex-row justify-end gap-2 w-full pb-4">
             
             </div>

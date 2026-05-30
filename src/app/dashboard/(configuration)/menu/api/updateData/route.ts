@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod"; // Import Zod
-import { actionService } from "../../service/actionService";
+import { menuService } from "../../service/menuService";
 import { DataEdit } from "../../type/type";
+
 
 // Definisikan interface jika Anda ingin tipe data body yang jelas (Opsional)
 
@@ -10,12 +11,37 @@ const userSchema = z.object({
     name: z.string().min(3, "Nama minimal 3 karakter")
 });
 
+export async function GET(request: Request) {
+
+     try {
+            const { searchParams } = new URL(request.url);
+            const menu_id = searchParams.get("id");
+            const dataPrvilage = await  menuService.getDataPrivilage(menu_id??"")
+            return NextResponse.json({
+            message: "Halo dari Next.js API!",
+            data:dataPrvilage,
+            status: "success",
+            });
+        }
+        catch (error: any) {
+                console.error("Error di Get:", error);
+                // Mengembalikan response error ke client
+                return NextResponse.json(
+                {
+                message: "Internal Server Error",
+                error: [error.message || "Terjadi kesalahan saat memproses data"],
+                code:0
+                },
+                { status: 500 },
+            );
+        }
+}
+
 export async function POST(request: NextRequest) {
     
     try {
 
     const body: DataEdit = await request.json();
-
     const validation = userSchema.safeParse(body);
     if (!validation.success) {
 
@@ -28,9 +54,8 @@ export async function POST(request: NextRequest) {
             { status: 400 }
         );
     }
-    console.log("yooo")
     body.updated_by = 'admin'
-    const sendData = await actionService.actionEdit(body)
+    const sendData = await menuService.actionEdit(body)
     const serializedData = JSON.parse(
     JSON.stringify(sendData, (key, value) =>
     typeof value === "bigint" ? value.toString() : value

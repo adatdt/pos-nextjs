@@ -1,31 +1,54 @@
 'use client'
 import { BtnCancel, BtnSave } from "@/components/Button";
 import { toast } from "sonner";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {  useEffect, useRef, useState } from "react";
 import type {GetData} from "../type/type"
 import { useRefreshStore } from "../service/useRefresh";
 import { BlockUI } from '@/components/BlockUi';
+import {encryptAES}  from '@/lib/crypto';
+import type {MenuItem} from "@/lib/type/type"
+import { number } from "zod";
 
 type Option = {
   label: string;
   value: string;
 };
 
-const options: Option[] = [
-  { label: "Apple", value: "apple" },
-  { label: "Banana", value: "banana" },
-  { label: "Orange", value: "orange" },
-  { label: "Mango", value: "mango" },
-];
-
-
-export default function Edit({title, handlingModal, dataDetail}:Readonly<GetData>) {
+export default function Edit({title, handlingModal, dataDetail, dataAction, dataGrid}:Readonly<GetData>) {
     
     const [selected, setSelected] = useState<Option[]>([]);
     const [open, setOpen] = useState(false);
+    const [openParent, setOpenParent] = useState(false);
     const [search, setSearch] = useState("");
+    const [dataParent, setDataParent] = useState({name:dataDetail?.parentName,id:encryptAES(dataDetail?.parentId)});
+    const [isLoading, setIsLoading] = useState(false);
+    const [modalAnimated, setModalAnimated] = useState(true);
     const ref = useRef<HTMLDivElement>(null);
+    const { triggerRefresh } = useRefreshStore();
 
+    useEffect(() =>{
+        const fetchData = async () => {
+            try {
+                const params = new URLSearchParams({ id: encryptAES(dataDetail?.id) });
+                const url = `/dashboard/menu/api/updateData?${params.toString()}`;
+                const response = await fetch(url, {
+                    method: 'GET', // Changed to GET
+                        headers: {
+                            'Content-Type': 'application/json',}
+                        });
+
+                if (!response.ok) throw new Error("Gagal mengambil data");
+                const result = await response.json();  
+                const getSelected = result.data.map((el:{action_id:string, name:string})=>({value:el.action_id, label:el.name}))
+                setSelected(getSelected)          
+
+            } catch (error) {
+            console.error("Gagal:", error);
+
+            }
+        };
+        fetchData()
+    },[])
   // close saat klik luar
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -45,23 +68,26 @@ export default function Edit({title, handlingModal, dataDetail}:Readonly<GetData
     );
   };
 
+const actionSelectParent = (name:string, id:string) => {
+    setDataParent({name:name, id:id})
+    setOpenParent(false)
+}
+
   const removeItem = (value: string) => {
     setSelected((prev) => prev.filter((item) => item.value !== value));
   };
 
-  const filteredOptions = options.filter((o) =>
+  const filteredOptions = dataAction?.filter((o) =>
     o.label.toLowerCase().includes(search.toLowerCase())
   );
    
     const [formData, setFormData] = useState({
-    name: dataDetail?.name,
-    id: dataDetail?.id,
-  });
+        name: dataDetail?.name,
+        id: encryptAES(dataDetail?.id),
+        slug: dataDetail?.slug,
+        number: dataDetail?.number,
+    });
 
-
-    const { triggerRefresh } = useRefreshStore();
-    const [isLoading, setIsLoading] = useState(false);
-    const [modalAnimated, setModalAnimated] = useState(true);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -71,12 +97,13 @@ export default function Edit({title, handlingModal, dataDetail}:Readonly<GetData
     const sendData = async()=>{
         try {
             setIsLoading(true);
-        const response = await fetch('/dashboard/action/api/updateData', {
+            const sendData = {...formData, dataAction:selected, parentId:dataParent.id}
+        const response = await fetch('/dashboard/menu/api/updateData', {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json',
             },
-            body: JSON.stringify(formData),
+            body: JSON.stringify(sendData),
         });
         const getResponse = await response.json()
         if(getResponse.code == 1)
@@ -104,94 +131,146 @@ export default function Edit({title, handlingModal, dataDetail}:Readonly<GetData
         }, 300);
     }
 
+ 
+    const dataLiChild =  (dataChild:MenuItem[], pad:number|null) =>{
+
+        return(
+             <>            
+               {dataChild?.map((element)=>(
+                             element.child?.length && element.child.length > 0?(
+                                 <li key={element.id}>
+                                    <ul className="pl-6 ">
+                                          <button
+                                            type="button"
+                                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left"
+                                            >
+                                            <span className="font-bold">{element.name}</span>
+                                            <input
+                                                type="checkbox"
+                                                readOnly
+                                                className="accent-blue-500"
+                                            />
+                                            </button>
+                                         {dataLiChild(element.child, 0)}
+                                    </ul>
+                         
+                        </li>
+                             ):(
+                                 <li key={element.id} className="pl-6">
+                            <button
+                            type="button"
+                            // onClick={() => toggleSelect(option)}
+                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left"
+                            >
+                            <span>{element.name}</span>
+                            <input
+                                type="checkbox"
+                                // checked={isSelected}
+                                readOnly
+                                className="accent-blue-500"
+                            />
+                            </button>
+                        </li>
+                             )
+                        ))}
+        
+            </>
+        )
+
+    }
+
+
     const dropDown =  ()=>{
 
         return (
         <div ref={ref}>
             {/* BOX */}
-            <div className="border rounded-lg p-2 flex flex-wrap gap-2 min-h-[42px]">
+             <label htmlFor="drp"  className="block text-sm font-medium text-gray-900 mb-1">Aksi</label>
+            <div className="border rounded-lg p-2 flex flex-wrap gap-2 min-h-10.5">
 
-            {/* Selected */}
-            {selected.map((item) => (
-                <span
-                key={item.value}
-                className="bg-blue-500 text-white px-2 py-1 rounded-full text-sm flex items-center gap-1"
-                >
-                {item.label}
+                {selected.map((item) => (
+                    <span
+                    key={item.value}
+                    className="bg-blue-500 text-white px-2 py-1 rounded-full text-sm flex items-center gap-1"
+                    >
+                    {item.label}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                        e.stopPropagation();
+                        removeItem(item.value);
+                        }}
+                        className="ml-1"
+                    >
+                        ✕
+                    </button>
+                    </span>
+                ))}
+
+                {/* Trigger */}
                 <button
                     type="button"
-                    onClick={(e) => {
-                    e.stopPropagation();
-                    removeItem(item.value);
-                    }}
-                    className="ml-1"
+                    name="drp"
+                    onClick={() => setOpen((prev) => !prev)}
+                    className="flex-1 text-left outline-none"
                 >
-                    ✕
+                    {selected.length === 0 && (
+                    <span className="text-gray-400">Pilih buah...</span>
+                    )}
                 </button>
-                </span>
-            ))}
-
-            {/* Trigger */}
-            <button
-                type="button"
-                onClick={() => setOpen((prev) => !prev)}
-                className="flex-1 text-left outline-none"
-            >
-                {selected.length === 0 && (
-                <span className="text-gray-400">Pilih buah...</span>
-                )}
-            </button>
 
             </div>
 
             {/* DROPDOWN */}
             {open && (
-            <div className="absolute left-0 mt-1 w-full border rounded-lg bg-white shadow-lg z-10">
-                
-                {/* SEARCH */}
-                <div className="p-2 border-b">
-                <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Cari..."
-                    className="w-full border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="absolute left-0 mt-1 w-full border rounded-lg bg-white shadow-lg z-10">
+                    
+                    {/* SEARCH */}
+                    <div className="p-2 border-b">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Cari..."
+                        className="w-full border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    </div>
+
+
+                    {/* LIST */}
+                    <ul className="max-h-60 overflow-auto">
+                    {filteredOptions?.length === 0 && (
+                        <li className="p-2 text-sm text-gray-500">
+                        Tidak ditemukan
+                        </li>
+                    )}
+
+                    {filteredOptions?.map((option) => {
+                        const isSelected = selected.some(
+                        (item) => item.value === option.value
+                        );
+
+                        return (
+                        <li key={option.value}>
+                            <button
+                            type="button"
+                            onClick={() => toggleSelect(option)}
+                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left"
+                            >
+                            <span>{option.label}</span>
+                            <input
+                                type="checkbox"
+                                checked={isSelected}
+                                readOnly
+                                className="accent-blue-500"
+                            />
+                            </button>
+                        </li>
+                        );
+                    })}
+                    </ul>
+                    
                 </div>
-
-                {/* LIST */}
-                <ul className="max-h-60 overflow-auto">
-                {filteredOptions.length === 0 && (
-                    <li className="p-2 text-sm text-gray-500">
-                    Tidak ditemukan
-                    </li>
-                )}
-
-                {filteredOptions.map((option) => {
-                    const isSelected = selected.some(
-                    (item) => item.value === option.value
-                    );
-
-                    return (
-                    <li key={option.value}>
-                        <button
-                        type="button"
-                        onClick={() => toggleSelect(option)}
-                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left"
-                        >
-                        <span>{option.label}</span>
-                        <input
-                            type="checkbox"
-                            checked={isSelected}
-                            readOnly
-                            className="accent-blue-500"
-                        />
-                        </button>
-                    </li>
-                    );
-                })}
-                </ul>
-            </div>
             )}
         </div>
         );
@@ -199,6 +278,167 @@ export default function Edit({title, handlingModal, dataDetail}:Readonly<GetData
 
     }
 
+
+     const dropDownParent =  ()=>{
+
+        return (
+        <div ref={ref}>
+            {/* BOX */}
+             <label htmlFor="drp"  className="block text-sm font-medium text-gray-900 mb-1">Parent</label>
+            <div className="border rounded-lg p-2 flex flex-wrap gap-2 min-h-10.5">
+                
+                {dataParent?.name && String(dataParent.name).trim() !== "" &&(
+                 <span
+                    className="bg-blue-500 text-white px-2 py-1 rounded-full text-sm flex items-center gap-1"
+                    >
+                    {dataParent.name}
+                        <button
+                            type="button"
+                             onClick={() => actionSelectParent('','')}
+                            className="ml-1"
+                        >
+                            ✕
+                        </button>
+                    </span>
+
+                )}
+
+                {/* Trigger */}
+                <button
+                    type="button"
+                    name="drp"
+                    onClick={() => setOpenParent((prev) => !prev)}
+                    className="flex-1 text-left outline-none"
+                >
+                    {selected.length === 0 && (
+                    <span className="text-gray-400">Pilih Parent...</span>
+                    )}
+                </button>
+
+            </div>
+
+            {/* DROPDOWN */}
+            {openParent && (
+                <div className="absolute left-0 mt-1 w-full border rounded-lg bg-white shadow-lg z-10">
+                    
+                    {/* SEARCH */}
+                    {/* <div className="p-2 border-b">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Cari..."
+                        className="w-full border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    </div> */}
+
+
+                    {/* LIST */}
+                    <ul className="max-h-60 overflow-auto">
+                        {parentMenu()}
+                    </ul>
+                    
+                </div>
+            )}
+
+
+        </div>
+        );
+
+
+    }
+
+    const parentMenu = ()=>{
+        return(
+             <li >
+                    {dataGrid?.map((element)=>(
+                    element.child?.length && element.child.length > 0?(
+                        <ul key={element.id} >
+                            <button 
+                            type="button"
+                             onClick={() => actionSelectParent(element.name, encryptAES(element.id))}
+                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left"
+                            >
+                            <span>{element.name}</span>
+                            <input
+                                 type="radio"
+                                name="parent"
+                                checked={element.name == dataParent.name}
+                                readOnly
+                                className="accent-blue-500"
+                            />
+                            </button>                            
+                            {childMenu(element.child, 0)}
+                        </ul>
+                    ):(
+                    <button key={element.id}
+                    type="button"
+                     onClick={() => actionSelectParent(element.name, encryptAES(element.id))}
+                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left"
+                    >
+                    <span>{element.name}</span>
+                    <input
+                        type="radio"
+                        name="parent"
+                       
+                        checked={element.name == dataParent.name}
+                        readOnly
+                        className="accent-blue-500"
+                    />
+                    </button>
+
+                    )))}
+                </li>
+
+        );
+    }
+
+    const childMenu = (dataChild:MenuItem[], pad:number)=>{
+        const newParamPad = pad + 1
+        const newPad = newParamPad * 12
+
+         return(
+             <li style={{ paddingLeft: `${newPad}px` }}>
+                    {dataChild?.map((element)=>(
+                    element.child?.length && element.child.length > 0?(
+                        <ul key={element.id}>
+                            <button 
+                            type="button"
+                             onClick={() => actionSelectParent(element.name, encryptAES(element.id))}                           
+                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left"
+                            >
+                            <span>{element.name}</span>
+                            <input
+                                type="radio"
+                                name="parent"
+                                checked={element.name == dataParent.name}
+                                readOnly
+                                className="accent-blue-500"
+                            />
+                            </button>
+                            {childMenu(element.child, newParamPad)}
+                        </ul>
+                    ):(
+                    <button key={element.id}
+                    type="button"
+                     onClick={() => actionSelectParent(element.name, encryptAES(element.id))}
+                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left"
+                    >
+                    <span>{element.name}</span>
+                    <input
+                        type="radio"
+                        name="parent"
+                        checked={element.name == dataParent.name}
+                        readOnly
+                        className="accent-blue-500"
+                    />
+                    </button>
+
+                    )))}
+                </li>
+
+        );
+    }
 
     return (
         
@@ -215,8 +455,20 @@ export default function Edit({title, handlingModal, dataDetail}:Readonly<GetData
                                     className="w-full px-2 py-2 border border-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
                             </div>
 
-{dropDown()}
+                            <div>
+                                <label htmlFor="slug"  className="block text-sm font-medium text-gray-900 mb-1">Url</label>
+                                <input type="text" id="slug" name="slug" onChange={handleChange} placeholder="Masukkan nama"  value={formData?.slug}
+                                    className="w-full px-2 py-2 border border-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+                            </div>       
 
+                            <div>
+                                <label htmlFor="nmbr"  className="block text-sm font-medium text-gray-900 mb-1">Urutan</label>
+                                <input type="text" id="nmbr" name="nmbr" onChange={handleChange} placeholder="Masukkan Urutan"  value={formData?.number}
+                                    className="w-full px-2 py-2 border border-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+                            </div>                                   
+
+                            {dropDown()}
+                            {dropDownParent()}
 
                         </form>
 

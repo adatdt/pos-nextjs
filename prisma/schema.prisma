@@ -53,7 +53,7 @@ model action {
   @@schema("master")
 }
 
-model privilage {
+model menu_detail {
   id         BigInt    @id(map: "menu_detail_pk") @default(autoincrement())
   menu_id    Int
   action_id  Int
