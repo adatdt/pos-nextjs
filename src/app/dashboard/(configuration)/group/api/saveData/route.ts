@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod"; // Import Zod
-import { menuService } from "../../service/menuService";
+import { groupService } from "../../service/groupService";
 import type { DataAdd } from "../../type/type";
 
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    const sendData = await menuService.actionAdd(body)
+    const sendData = await groupService.actionAdd(body)
     const serializedData = JSON.parse(
       JSON.stringify(sendData, (key, value) =>
         typeof value === "bigint" ? value.toString() : value

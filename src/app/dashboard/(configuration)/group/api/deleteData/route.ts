@@ -1,18 +1,16 @@
 import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod"; // Import Zod
-import { menuService } from "../../service/menuService";
-import type { DataAdd } from "../../type/type";
-
-
+import { groupService } from "../../service/groupService";
+import {  DataDelete} from "../../type/type";
 
 const userSchema = z.object({
-    name: z.string().min(3, "Nama minimal 3 karakter")
+    id: z.string()
 });
 
 export async function POST(request: NextRequest) {
   try {
 
-    const body: DataAdd = await request.json();
+    const body: DataDelete = await request.json();
 
     const validation = userSchema.safeParse(body);
     if (!validation.success) {
@@ -27,8 +25,9 @@ export async function POST(request: NextRequest) {
             { status: 400 }
         );
     }
-
-    const sendData = await menuService.actionAdd(body)
+    
+    body.status = '-5'
+    const sendData = await groupService.actionUpdateStatus(body)
     const serializedData = JSON.parse(
       JSON.stringify(sendData, (key, value) =>
         typeof value === "bigint" ? value.toString() : value
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
       {
         receivedData: body,
         data: serializedData,
-        message: "Success Add Data",
+        message: "Success Delete Data",
         code:1
       },
       { status: 201 },

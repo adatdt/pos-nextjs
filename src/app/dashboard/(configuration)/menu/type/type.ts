@@ -31,11 +31,17 @@ export interface SetFiltering  {
 // Definisikan interface jika Anda ingin tipe data body yang jelas (Opsional)
 export interface DataAdd  {
     name:string
+    slug?:string|null,
+    updated_by?:string
+    dataAction?:{value:string; label:string}[],
+    parentId?:string
+    number?:number
 }  
 
 export interface DataEdit  {
     name:string
     id:string
+    slug?:string|null,
     updated_by?:string
     dataAction?:{value:string; label:string}[],
     parentId?:string

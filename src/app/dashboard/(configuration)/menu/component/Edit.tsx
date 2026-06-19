@@ -15,12 +15,19 @@ type Option = {
 };
 
 export default function Edit({title, handlingModal, dataDetail, dataAction, dataGrid}:Readonly<GetData>) {
-    
+    console.log(dataDetail)
     const [selected, setSelected] = useState<Option[]>([]);
     const [open, setOpen] = useState(false);
     const [openParent, setOpenParent] = useState(false);
     const [search, setSearch] = useState("");
-    const [dataParent, setDataParent] = useState({name:dataDetail?.parentName,id:encryptAES(dataDetail?.parentId)});
+   const [dataParent, setDataParent] = useState({
+  name: dataDetail?.parentName || "", 
+  
+  // Memastikan parentId tidak null, tidak undefined, dan bukan string kosong
+  id: dataDetail?.parentId !== null && dataDetail?.parentId !== undefined && dataDetail?.parentId !== "" 
+    ? encryptAES(dataDetail.parentId) 
+    : ""
+});
     const [isLoading, setIsLoading] = useState(false);
     const [modalAnimated, setModalAnimated] = useState(true);
     const ref = useRef<HTMLDivElement>(null);
@@ -50,15 +57,6 @@ export default function Edit({title, handlingModal, dataDetail, dataAction, data
         fetchData()
     },[])
   // close saat klik luar
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const toggleSelect = (option: Option) => {
     setSelected((prev) =>
@@ -91,7 +89,8 @@ const actionSelectParent = (name:string, id:string) => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData((prev) => ({ ...prev, [name]: value }));
+        console.log(formData)
     };
 
     const sendData = async()=>{
@@ -215,7 +214,7 @@ const actionSelectParent = (name:string, id:string) => {
                     className="flex-1 text-left outline-none"
                 >
                     {selected.length === 0 && (
-                    <span className="text-gray-400">Pilih buah...</span>
+                    <span className="text-gray-400">Pilih</span>
                     )}
                 </button>
 
@@ -462,8 +461,8 @@ const actionSelectParent = (name:string, id:string) => {
                             </div>       
 
                             <div>
-                                <label htmlFor="nmbr"  className="block text-sm font-medium text-gray-900 mb-1">Urutan</label>
-                                <input type="text" id="nmbr" name="nmbr" onChange={handleChange} placeholder="Masukkan Urutan"  value={formData?.number}
+                                <label htmlFor="number"  className="block text-sm font-medium text-gray-900 mb-1">Urutan</label>
+                                <input type="text" id="number" name="number" onChange={handleChange} placeholder="Masukkan Urutan"  value={formData?.number}
                                     className="w-full px-2 py-2 border border-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
                             </div>                                   
 

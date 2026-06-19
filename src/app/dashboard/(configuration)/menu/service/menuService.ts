@@ -7,6 +7,7 @@ interface MenuDictionary {
   [id: string]: string;
 }
 
+const moduleName = " Menu";
 export const menuService = {
     // SELECT: Mengambil data
     async getAllData(paramFitering:SetFiltering) {      
@@ -49,7 +50,12 @@ export const menuService = {
                     children = this.getChild(String(element.id), menuChild)
                 }
 
-                allMenu.push({name: element.name, parentId: element.parentId, id: element.id, child: children, slug:element.slug, parentName:element.parentName,number:element.number})
+                let idParent = ""
+                 if (element.parentId !== '' && element.parentId !== null && element.parentId !== undefined && element.parentId !== "null") 
+                {
+                    idParent = element.parentId
+                }
+                allMenu.push({name: element.name, parentId: idParent, id: element.id, child: children, slug:element.slug, parentName:element.parentName,number:element.number})
                 
             });
             const getDataAction = await this.getDataAction();
@@ -58,7 +64,7 @@ export const menuService = {
 
         } catch (error) {
             console.error("Gagal Simpan (Rollback terjadi):", error);
-            throw new Error(JSON.stringify([error || "Terjadi kesalahan saat update action"]));
+            throw new Error(JSON.stringify([error || `Terjadi kesalahan saat update action ${moduleName}`]));
         }
     },
 
@@ -128,23 +134,76 @@ export const menuService = {
 
     async actionAdd(body:DataAdd) {
         try {
-        return await prisma.$transaction(async (tx) => {            
-            // 1. Simpan data ke tabel User
-            const newUser = await tx.action.create({
+           
+            const parentId = body.parentId
+      
+            body.dataAction?.forEach( async(element) => {
+                const valueId = await decryptAES(element.value);
+           
+                 if (!valueId) {
+                    throw new Error(JSON.stringify(["ID Value gagal didekripsi (Hasil Null)"]));
+                }                
+            });
+            let parentIdDec = ''
+            if(parentId !=='')
+            {
+                 parentIdDec = await decryptAES(String(parentId));
+                 if (!parentIdDec) {
+                    throw new Error(JSON.stringify(["ID Parent gagal didekripsi (Hasil Null)"]));
+                }
+            }
+            return await prisma.$transaction(async (tx) => {            
+            // 1. Convert parent ID safely
+            const parentIdNum = parentIdDec ? Number(parentIdDec) : null;
+
+            // 2. Save data to Menu table
+            const newMenu = await tx.menu.create({
                 data: {
-                name: body.name,
-                status: 1,
-                created_on:new Date(),
-                created_by: "admin",
+                    name: body.name,
+                    number: Number(body.number),
+                    parent: parentIdNum,
+                    status: 1,
+                    created_on: new Date(),
+                    created_by: "admin",
                 },
             });
 
-            return newUser;
+            const insertedId = newMenu.id; 
+
+            // 3. FIX: Create the array by awaiting all decryptions using Promise.all and map
+            const menuDetailsData = await Promise.all(
+                (body.dataAction || []).map(async (item) => {
+                    const decryptedActionId = await decryptAES(item.value);
+                    
+                    return {
+                        menu_id: Number(insertedId), 
+                        // Ensure action_id is cast to a number if your schema requires it
+                        action_id: Number(decryptedActionId), 
+                        status: 1,
+                        created_on: new Date(),
+                        created_by: 'Admin',
+                    };
+                })
+            );
+        
+            // 4. Insert the batch data now that menuDetailsData is fully populated
+            const batchResult = await tx.menu_detail.createMany({
+                data: menuDetailsData,
+                skipDuplicates: true,
+            });
+
+            // 5. FIX: You MUST explicitly return something here so the route gets data
+            return {
+                success: true,
+                menuId: insertedId,
+                insertedCount: batchResult.count
+            };
         });
+
 
         } catch (error: any) {
         console.error("Gagal Simpan (Rollback terjadi):", error.message);
-        throw new Error(error.message || "Terjadi kesalahan saat menambah action");
+        throw new Error(error.message || `Terjadi kesalahan saat menambah ${moduleName}`);
     }
 
     }   ,
@@ -165,14 +224,14 @@ export const menuService = {
                 }                
             });
             let parentIdDec = ''
-            if(parentId !=='')
-            {
+            if (parentId !== '' && parentId !== null && parentId !== undefined && parentId !== "null") 
+            { console.log(body)
                  parentIdDec = await decryptAES(String(parentId));
                  if (!parentIdDec) {
                     throw new Error(JSON.stringify(["ID Parent gagal didekripsi (Hasil Null)"]));
                 }
             }
-           
+
             return await prisma.$transaction(async (tx) => {            
                 // 1. Dekripsi ID utama
                 const id = await decryptAES(body.id);
@@ -182,7 +241,8 @@ export const menuService = {
                     where: { id: menuId },
                     data: {             
                         name: body.name,
-                        number: body.number,
+                        number: Number(body.number),
+                        slug:body.slug,
                         parent: parentIdDec ? Number(parentIdDec) : null,
                         updated_by: body.updated_by,
                         updated_on: new Date(),
